@@ -1,0 +1,52 @@
+receivers:
+  prometheus:
+    config:
+      scrape_configs:
+      - job_name: 'otel-self'
+        scrape_interval: 1s
+        static_configs:
+          - targets: ['127.0.0.1:8888']
+      - job_name: 'node-1'
+        scrape_interval: 1s
+        static_configs:
+          - targets: ['127.0.0.1:8081']
+
+processors:
+  batch:
+    send_batch_size: 10000
+    timeout: 100ms
+
+exporters:
+  debug:
+    verbosity: detailed
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+  prometheusremotewrite/self:
+    endpoint: http://localhost:9091/api/v1/write
+    remote_write_queue:
+      enabled: true
+    retry_on_failure:
+      enabled: true
+
+  prometheusremotewrite/prom:
+    endpoint: http://localhost:9090/api/v1/write
+    remote_write_queue:
+      enabled: false
+      queue_size: 100000000000
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 5s
+      max_elapsed_time: 15s
+
+service:
+  telemetry:
+    logs:
+      level: "DEBUG"
+
+  pipelines:
+    metrics:
+      receivers: [prometheus]
+      processors: [batch]
+      exporters: [prometheusremotewrite]
